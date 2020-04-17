@@ -58,9 +58,14 @@ public class ReactiveFeignClientUsingConfigurationsTests {
 	@Autowired
 	private BarClient barClient;
 
+	@Autowired
+	private EmptyPathClient emptyPathClient;
 
 	@BeforeClass
 	public static void setupStubs() {
+
+		mockHttpServer.stubFor(get(urlEqualTo("/empty-path-without-slash"))
+				.willReturn(aResponse().withBody("OK")));
 
 		mockHttpServer.stubFor(get(urlEqualTo("/foo"))
 				.withHeader("Foo", equalTo("Foo"))
@@ -78,6 +83,12 @@ public class ReactiveFeignClientUsingConfigurationsTests {
 	}
 
 	@Test
+	public void testEmptyPath() {
+		String response = emptyPathClient.emptyPath().block();
+		assertEquals("OK", response);
+	}
+
+	@Test
 	public void testFoo() {
 		String response = fooClient.foo().block();
 		assertEquals("OK", response);
@@ -87,6 +98,14 @@ public class ReactiveFeignClientUsingConfigurationsTests {
 	public void testBar() {
 		barClient.bar().block();
 		fail("it should timeout");
+	}
+
+	@ReactiveFeignClient(name = "emptyPath", url = "http://localhost:${" + MOCK_SERVER_PORT_PROPERTY+"}/empty-path-without-slash",
+			configuration = FooConfiguration.class)
+	protected interface EmptyPathClient {
+
+		@RequestMapping(method = RequestMethod.GET)
+		Mono<String> emptyPath();
 	}
 
 	@ReactiveFeignClient(name = "foo", url = "http://localhost:${" + MOCK_SERVER_PORT_PROPERTY+"}",
@@ -108,7 +127,7 @@ public class ReactiveFeignClientUsingConfigurationsTests {
 	@Configuration
 	@EnableAutoConfiguration
 	@EnableReactiveFeignClients(defaultConfiguration = DefaultConfiguration.class,
-			clients = {FooClient.class, BarClient.class})
+			clients = {FooClient.class, BarClient.class, EmptyPathClient.class})
 	protected static class Application {
 	}
 
